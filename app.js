@@ -40,13 +40,24 @@ function createCardElement({ title, caption, cover }) {
   const article = document.createElement('article');
   article.className = 'game-card';
 
-  // Кнопка удаления карточки; сама логика висит на полке (делегирование)
+  // Кнопки редактирования и удаления; сама логика висит на полке (делегирование)
+  const actions = document.createElement('div');
+  actions.className = 'game-actions';
+
+  const editBtn = document.createElement('button');
+  editBtn.type = 'button';
+  editBtn.className = 'game-edit';
+  editBtn.textContent = '✎';
+  editBtn.setAttribute('aria-label', `Редактировать «${title}»`);
+
   const removeBtn = document.createElement('button');
   removeBtn.type = 'button';
   removeBtn.className = 'game-remove';
   removeBtn.textContent = '×';
   removeBtn.setAttribute('aria-label', `Удалить «${title}»`);
-  article.append(removeBtn);
+
+  actions.append(editBtn, removeBtn);
+  article.append(actions);
 
   const coverEl = document.createElement('div');
   coverEl.className = 'game-cover';
@@ -110,9 +121,50 @@ function filterCards(shelf, query) {
   document.getElementById('shelf-empty').hidden = visible > 0;
 }
 
+// Собирает объект карточки из полей формы
+function readForm(form) {
+  const data = new FormData(form);
+  return {
+    title: String(data.get('title') || '').trim(),
+    caption: String(data.get('caption') || '').trim(),
+    cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
+  };
+}
+
+// Переводит форму в режим правки: подставляет данные карточки и меняет подписи
+function fillForm(form, card, index) {
+  form.elements.index.value = String(index);
+  form.elements.title.value = card.title;
+  form.elements.caption.value = card.caption || '';
+  form.elements.cover.value = card.cover || '';
+  form.classList.add('is-editing');
+  document.getElementById('form-title').textContent = 'Редактировать игру';
+  document.getElementById('submit-btn').textContent = 'Сохранить';
+  document.getElementById('cancel-edit').hidden = false;
+  form.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  form.elements.title.focus();
+}
+
+// Возвращает форму в режим добавления
+function resetForm(form) {
+  form.reset();
+  form.elements.index.value = '';
+  form.classList.remove('is-editing');
+  document.getElementById('form-title').textContent = 'Добавить игру';
+  document.getElementById('submit-btn').textContent = 'Добавить';
+  document.getElementById('cancel-edit').hidden = true;
+}
+
+// Возвращает индекс редактируемой карточки или -1, если форма в режиме добавления
+function editingIndex(form) {
+  const value = form.elements.index.value;
+  return value === '' ? -1 : Number(value);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const shelf = document.querySelector('.shelf');
   const form = document.getElementById('add-form');
+  const cancelBtn = document.getElementById('cancel-edit');
   const searchInput = document.getElementById('search-input');
   const cards = loadCards();
 
@@ -122,44 +174,63 @@ document.addEventListener('DOMContentLoaded', () => {
   // Фильтрация по мере ввода в поле поиска
   searchInput.addEventListener('input', () => filterCards(shelf, searchInput.value));
 
-  // Удаление карточки по кнопке «×»: индекс берём из положения карточки на полке
+  // Кнопки на карточке: «✎» открывает правку, «×» удаляет.
+  // Индекс берём из положения карточки на полке
   shelf.addEventListener('click', (event) => {
-    const removeBtn = event.target.closest('.game-remove');
-    if (!removeBtn) {
+    const button = event.target.closest('.game-edit, .game-remove');
+    if (!button) {
       return;
     }
-    const card = removeBtn.closest('.game-card');
+    const card = button.closest('.game-card');
     const index = Array.from(shelf.children).indexOf(card);
+
+    if (button.classList.contains('game-edit')) {
+      fillForm(form, cards[index], index);
+      return;
+    }
+
     cards.splice(index, 1);
     saveCards(cards);
     card.remove();
+    // После удаления индексы сдвигаются, поэтому незавершённую правку сбрасываем
+    if (editingIndex(form) !== -1) {
+      resetForm(form);
+    }
     updateCounter();
     filterCards(shelf, searchInput.value);
   });
 
-  // Добавление новой карточки из формы
+  // Отмена правки кнопкой или клавишей Escape
+  cancelBtn.addEventListener('click', () => resetForm(form));
+  form.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && editingIndex(form) !== -1) {
+      resetForm(form);
+    }
+  });
+
+  // Отправка формы: сохранение правки или добавление новой карточки
   form.addEventListener('submit', (event) => {
     event.preventDefault();
 
-    const data = new FormData(form);
-    const title = String(data.get('title') || '').trim();
-    if (!title) {
+    const card = readForm(form);
+    if (!card.title) {
       return;
     }
 
-    const card = {
-      title,
-      caption: String(data.get('caption') || '').trim(),
-      cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
-    };
+    const index = editingIndex(form);
+    if (index !== -1) {
+      cards[index] = card;
+      shelf.children[index].replaceWith(createCardElement(card));
+    } else {
+      cards.push(card);
+      shelf.append(createCardElement(card));
+    }
 
-    cards.push(card);
     saveCards(cards);
-    shelf.append(createCardElement(card));
     updateCounter();
     filterCards(shelf, searchInput.value);
 
-    form.reset();
+    resetForm(form);
     form.elements.title.focus();
   });
 });

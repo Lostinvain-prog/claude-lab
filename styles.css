@@ -116,6 +116,16 @@ main {
   box-shadow: 0 4px 16px var(--accent-glow);
 }
 
+/* Режим правки: форма подсвечивается, появляется кнопка «Отмена» */
+.add-form.is-editing {
+  border-color: var(--accent);
+}
+
+.add-form #cancel-edit {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
 /* Поле поиска над полкой */
 .search {
   margin-bottom: 1.5rem;
@@ -171,11 +181,16 @@ main {
   box-shadow: 0 8px 24px var(--accent-glow);
 }
 
-/* Кнопка удаления карточки: появляется при наведении на карточку */
-.game-remove {
+/* Кнопки «✎» и «×» в углу карточки: появляются при наведении */
+.game-actions {
   position: absolute;
   top: 0.5rem;
   right: 0.5rem;
+  display: flex;
+  gap: 0.25rem;
+}
+
+.game-actions button {
   width: 1.75rem;
   height: 1.75rem;
   padding: 0;
@@ -191,12 +206,12 @@ main {
   transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
-.game-card:hover .game-remove,
-.game-remove:focus-visible {
+.game-card:hover .game-actions button,
+.game-actions button:focus-visible {
   opacity: 1;
 }
 
-.game-remove:hover {
+.game-actions button:hover {
   color: var(--text);
   border-color: var(--accent);
 }

@@ -13,13 +13,16 @@
   </header>
 
   <main>
-    <!-- Форма добавления новой игры на полку -->
+    <!-- Форма добавления и редактирования игры. В режиме правки скрытое поле
+         index хранит позицию карточки на полке -->
     <form class="add-form" id="add-form" aria-label="Добавить игру">
-      <h2 class="add-form__title">Добавить игру</h2>
+      <h2 class="add-form__title" id="form-title">Добавить игру</h2>
+      <input type="hidden" name="index" value="">
       <input name="title" type="text" required maxlength="80" placeholder="Название" aria-label="Название">
       <input name="caption" type="text" maxlength="120" placeholder="Студия · Жанр, год" aria-label="Подпись">
       <input name="cover" type="text" maxlength="8" placeholder="🎮" aria-label="Обложка-эмодзи">
-      <button type="submit">Добавить</button>
+      <button type="submit" id="submit-btn">Добавить</button>
+      <button type="button" id="cancel-edit" hidden>Отмена</button>
     </form>
 
     <!-- Поиск по названию: карточки фильтруются по мере ввода -->

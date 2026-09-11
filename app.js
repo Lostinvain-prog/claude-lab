@@ -40,6 +40,14 @@ function createCardElement({ title, caption, cover }) {
   const article = document.createElement('article');
   article.className = 'game-card';
 
+  // Кнопка удаления карточки; сама логика висит на полке (делегирование)
+  const removeBtn = document.createElement('button');
+  removeBtn.type = 'button';
+  removeBtn.className = 'game-remove';
+  removeBtn.textContent = '×';
+  removeBtn.setAttribute('aria-label', `Удалить «${title}»`);
+  article.append(removeBtn);
+
   const coverEl = document.createElement('div');
   coverEl.className = 'game-cover';
   coverEl.setAttribute('aria-hidden', 'true');
@@ -72,12 +80,43 @@ function countCards() {
   return document.querySelectorAll('.shelf .game-card').length;
 }
 
+// Подбирает форму слова под число: 1 игра, 2 игры, 5 игр, 21 игра
+function pluralize(count, one, few, many) {
+  const mod10 = count % 10;
+  const mod100 = count % 100;
+  if (mod10 === 1 && mod100 !== 11) return one;
+  if (mod10 >= 2 && mod10 <= 4 && (mod100 < 12 || mod100 > 14)) return few;
+  return many;
+}
+
+// Обновляет счётчик карточек в шапке по текущему состоянию полки
+function updateCounter() {
+  const count = countCards();
+  const counter = document.getElementById('card-count');
+  counter.textContent = `${count} ${pluralize(count, 'игра', 'игры', 'игр')}`;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const shelf = document.querySelector('.shelf');
   const form = document.getElementById('add-form');
   const cards = loadCards();
 
   renderShelf(shelf, cards);
+  updateCounter();
+
+  // Удаление карточки по кнопке «×»: индекс берём из положения карточки на полке
+  shelf.addEventListener('click', (event) => {
+    const removeBtn = event.target.closest('.game-remove');
+    if (!removeBtn) {
+      return;
+    }
+    const card = removeBtn.closest('.game-card');
+    const index = Array.from(shelf.children).indexOf(card);
+    cards.splice(index, 1);
+    saveCards(cards);
+    card.remove();
+    updateCounter();
+  });
 
   // Добавление новой карточки из формы
   form.addEventListener('submit', (event) => {
@@ -98,6 +137,7 @@ document.addEventListener('DOMContentLoaded', () => {
     cards.push(card);
     saveCards(cards);
     shelf.append(createCardElement(card));
+    updateCounter();
 
     form.reset();
     form.elements.title.focus();

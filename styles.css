@@ -123,6 +123,7 @@ main {
 }
 
 .game-card {
+  position: relative;
   background: var(--surface);
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius);
@@ -135,6 +136,36 @@ main {
   transform: translateY(-4px);
   background: var(--surface-hover);
   box-shadow: 0 8px 24px var(--accent-glow);
+}
+
+/* Кнопка удаления карточки: появляется при наведении на карточку */
+.game-remove {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  font: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--muted);
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.game-card:hover .game-remove,
+.game-remove:focus-visible {
+  opacity: 1;
+}
+
+.game-remove:hover {
+  color: var(--text);
+  border-color: var(--accent);
 }
 
 .game-cover {

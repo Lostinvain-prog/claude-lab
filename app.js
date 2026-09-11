@@ -61,6 +61,8 @@ function loadCards() {
 function createCardElement({ title, caption, cover, tags = [] }) {
   const article = document.createElement('article');
   article.className = 'game-card';
+  // Теги дублируем в data-атрибут, чтобы фильтр не разбирал разметку чипов
+  article.dataset.tags = tags.join(',');
 
   // Кнопки редактирования и удаления; сама логика висит на полке (делегирование)
   const actions = document.createElement('div');
@@ -142,18 +144,45 @@ function updateCounter() {
   counter.textContent = `${count} ${pluralize(count, 'игра', 'игры', 'игр')}`;
 }
 
-// Скрывает карточки, чьё название не содержит запрос (без учёта регистра).
-// Пустой запрос показывает все карточки
-function filterCards(shelf, query) {
+// Скрывает карточки, которые не подходят под поиск по названию (без учёта
+// регистра) и под выбранный тег. Пустой запрос и пустой тег ничего не отсеивают
+function filterCards(shelf, query, activeTag) {
   const needle = query.trim().toLowerCase();
   let visible = 0;
   for (const card of shelf.children) {
     const title = card.querySelector('.game-title').textContent.toLowerCase();
-    const match = needle === '' || title.includes(needle);
+    const cardTags = card.dataset.tags ? card.dataset.tags.split(',') : [];
+    const matchTitle = needle === '' || title.includes(needle);
+    const matchTag = activeTag === '' || cardTags.includes(activeTag);
+    const match = matchTitle && matchTag;
     card.hidden = !match;
     if (match) visible += 1;
   }
   document.getElementById('shelf-empty').hidden = visible > 0;
+}
+
+// Собирает все уникальные теги коллекции по алфавиту
+function collectTags(cards) {
+  const all = new Set();
+  for (const card of cards) {
+    for (const tag of card.tags || []) all.add(tag);
+  }
+  return [...all].sort((a, b) => a.localeCompare(b, 'ru'));
+}
+
+// Рисует чипы фильтра: «Все» плюс по кнопке на каждый тег; активный помечен
+function renderTagFilter(container, tags, activeTag) {
+  const buttons = [['', 'Все'], ...tags.map((tag) => [tag, tag])].map(([value, label]) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.dataset.tag = value;
+    button.textContent = label;
+    const active = value === activeTag;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', String(active));
+    return button;
+  });
+  container.replaceChildren(...buttons);
 }
 
 // Собирает объект карточки из полей формы
@@ -203,13 +232,45 @@ document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('add-form');
   const cancelBtn = document.getElementById('cancel-edit');
   const searchInput = document.getElementById('search-input');
+  const tagFilter = document.getElementById('tag-filter');
   const cards = loadCards();
+
+  // Выбранный тег фильтра; пустая строка — фильтр не выбран
+  let activeTag = '';
+
+  // Применяет поиск и фильтр по тегу к текущей полке
+  function applyFilter() {
+    filterCards(shelf, searchInput.value, activeTag);
+  }
+
+  // Перерисовывает чипы по актуальному набору тегов. Если выбранный тег
+  // исчез из коллекции (карточку удалили или отредактировали), фильтр сбрасывается
+  function refreshTagFilter() {
+    const tags = collectTags(cards);
+    if (activeTag && !tags.includes(activeTag)) {
+      activeTag = '';
+    }
+    renderTagFilter(tagFilter, tags, activeTag);
+  }
 
   renderShelf(shelf, cards);
   updateCounter();
+  refreshTagFilter();
 
   // Фильтрация по мере ввода в поле поиска
-  searchInput.addEventListener('input', () => filterCards(shelf, searchInput.value));
+  searchInput.addEventListener('input', applyFilter);
+
+  // Клик по чипу: выбрать тег, повторный клик по активному — сбросить
+  tagFilter.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-tag]');
+    if (!button) {
+      return;
+    }
+    const tag = button.dataset.tag;
+    activeTag = tag === activeTag ? '' : tag;
+    refreshTagFilter();
+    applyFilter();
+  });
 
   // Кнопки на карточке: «✎» открывает правку, «×» удаляет.
   // Индекс берём из положения карточки на полке
@@ -234,7 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
       resetForm(form);
     }
     updateCounter();
-    filterCards(shelf, searchInput.value);
+    refreshTagFilter();
+    applyFilter();
   });
 
   // Отмена правки кнопкой или клавишей Escape
@@ -265,7 +327,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     saveCards(cards);
     updateCounter();
-    filterCards(shelf, searchInput.value);
+    refreshTagFilter();
+    applyFilter();
 
     resetForm(form);
     form.elements.title.focus();

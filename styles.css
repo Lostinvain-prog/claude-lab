@@ -153,6 +153,39 @@ main {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+/* Чипы фильтра по тегу над полкой */
+.tag-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.tag-filter:empty {
+  display: none;
+}
+
+.tag-filter button {
+  padding: 0.35rem 0.8rem;
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--accent);
+  background: rgba(124, 92, 255, 0.15);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.tag-filter button:hover {
+  border-color: var(--accent);
+}
+
+.tag-filter button.is-active {
+  color: #fff;
+  background: var(--accent);
+}
+
 /* Подсказка, когда поиск ничего не нашёл */
 .shelf-empty {
   margin: 2rem 0;

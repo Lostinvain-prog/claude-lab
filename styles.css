@@ -129,11 +129,14 @@ main {
 
 /* Поле поиска над полкой */
 .search {
+  display: flex;
+  gap: 0.75rem;
   margin-bottom: 1.5rem;
 }
 
 .search input {
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   padding: 0.7rem 1rem;
   font: inherit;
   color: var(--text);
@@ -151,6 +154,23 @@ main {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Кнопка сброса поиска и фильтра по тегу */
+#reset-filters {
+  padding: 0.7rem 1.1rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease;
+}
+
+#reset-filters:hover {
+  border-color: var(--accent);
 }
 
 /* Чипы фильтра по тегу над полкой */
@@ -288,6 +308,13 @@ main {
   border-radius: 999px;
   background: rgba(124, 92, 255, 0.15);
   color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.game-tag:hover {
+  color: #fff;
+  background: var(--accent);
 }
 
 .site-footer {

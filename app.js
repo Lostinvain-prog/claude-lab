@@ -109,6 +109,7 @@ function createCardElement({ title, caption, cover, tags = [] }) {
     for (const tag of tags) {
       const item = document.createElement('li');
       item.className = 'game-tag';
+      item.dataset.tag = tag;
       item.textContent = tag;
       list.append(item);
     }
@@ -233,14 +234,24 @@ document.addEventListener('DOMContentLoaded', () => {
   const cancelBtn = document.getElementById('cancel-edit');
   const searchInput = document.getElementById('search-input');
   const tagFilter = document.getElementById('tag-filter');
+  const resetBtn = document.getElementById('reset-filters');
   const cards = loadCards();
 
   // Выбранный тег фильтра; пустая строка — фильтр не выбран
   let activeTag = '';
 
-  // Применяет поиск и фильтр по тегу к текущей полке
+  // Применяет поиск и фильтр по тегу к текущей полке. Кнопка «Сбросить»
+  // видна, только когда есть что сбрасывать
   function applyFilter() {
     filterCards(shelf, searchInput.value, activeTag);
+    resetBtn.hidden = searchInput.value.trim() === '' && activeTag === '';
+  }
+
+  // Выбирает тег (или снимает выбор, если он уже активен) и перерисовывает полку
+  function toggleTag(tag) {
+    activeTag = tag === activeTag ? '' : tag;
+    refreshTagFilter();
+    applyFilter();
   }
 
   // Перерисовывает чипы по актуальному набору тегов. Если выбранный тег
@@ -266,15 +277,26 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!button) {
       return;
     }
-    const tag = button.dataset.tag;
-    activeTag = tag === activeTag ? '' : tag;
-    refreshTagFilter();
-    applyFilter();
+    toggleTag(button.dataset.tag);
+  });
+
+  // Сброс поиска и фильтра по тегу одной кнопкой
+  resetBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    toggleTag('');
+    searchInput.focus();
   });
 
   // Кнопки на карточке: «✎» открывает правку, «×» удаляет.
   // Индекс берём из положения карточки на полке
   shelf.addEventListener('click', (event) => {
+    // Клик по чипу тега на карточке включает фильтр по этому тегу
+    const tagChip = event.target.closest('.game-tag');
+    if (tagChip) {
+      toggleTag(tagChip.dataset.tag);
+      return;
+    }
+
     const button = event.target.closest('.game-edit, .game-remove');
     if (!button) {
       return;

@@ -49,6 +49,73 @@ main {
   padding: 2rem 1.5rem;
 }
 
+/* Форма добавления игры */
+.add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+}
+
+.add-form__title {
+  flex-basis: 100%;
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.add-form input {
+  padding: 0.6rem 0.8rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.add-form input::placeholder {
+  color: var(--muted);
+}
+
+.add-form input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.add-form input[name="title"],
+.add-form input[name="caption"] {
+  flex: 1 1 200px;
+}
+
+.add-form input[name="cover"] {
+  flex: 0 0 5rem;
+  text-align: center;
+}
+
+.add-form button {
+  padding: 0.6rem 1.2rem;
+  font: inherit;
+  font-weight: 600;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.add-form button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px var(--accent-glow);
+}
+
 .shelf {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

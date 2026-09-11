@@ -13,28 +13,17 @@
   </header>
 
   <main>
-    <section class="shelf" aria-label="Игры">
-      <article class="game-card">
-        <div class="game-cover" aria-hidden="true">🐛</div>
-        <h2 class="game-title">Hollow Knight</h2>
-        <p class="game-caption">Team Cherry · Метроидвания, 2017</p>
-      </article>
-      <article class="game-card">
-        <div class="game-cover" aria-hidden="true">⚔️</div>
-        <h2 class="game-title">Sekiro: Shadows Die Twice</h2>
-        <p class="game-caption">FromSoftware · Экшен, 2019</p>
-      </article>
-      <article class="game-card">
-        <div class="game-cover" aria-hidden="true">🔥</div>
-        <h2 class="game-title">Dark Souls III</h2>
-        <p class="game-caption">FromSoftware · Action RPG, 2016</p>
-      </article>
-      <article class="game-card">
-        <div class="game-cover" aria-hidden="true">🤖</div>
-        <h2 class="game-title">NieR: Automata</h2>
-        <p class="game-caption">PlatinumGames · Action RPG, 2017</p>
-      </article>
-    </section>
+    <!-- Форма добавления новой игры на полку -->
+    <form class="add-form" id="add-form" aria-label="Добавить игру">
+      <h2 class="add-form__title">Добавить игру</h2>
+      <input name="title" type="text" required maxlength="80" placeholder="Название" aria-label="Название">
+      <input name="caption" type="text" maxlength="120" placeholder="Студия · Жанр, год" aria-label="Подпись">
+      <input name="cover" type="text" maxlength="8" placeholder="🎮" aria-label="Обложка-эмодзи">
+      <button type="submit">Добавить</button>
+    </form>
+
+    <!-- Карточки рисуются скриптом из localStorage -->
+    <section class="shelf" aria-label="Игры"></section>
   </main>
 
   <footer class="site-footer">

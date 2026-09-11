@@ -96,13 +96,31 @@ function updateCounter() {
   counter.textContent = `${count} ${pluralize(count, 'игра', 'игры', 'игр')}`;
 }
 
+// Скрывает карточки, чьё название не содержит запрос (без учёта регистра).
+// Пустой запрос показывает все карточки
+function filterCards(shelf, query) {
+  const needle = query.trim().toLowerCase();
+  let visible = 0;
+  for (const card of shelf.children) {
+    const title = card.querySelector('.game-title').textContent.toLowerCase();
+    const match = needle === '' || title.includes(needle);
+    card.hidden = !match;
+    if (match) visible += 1;
+  }
+  document.getElementById('shelf-empty').hidden = visible > 0;
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   const shelf = document.querySelector('.shelf');
   const form = document.getElementById('add-form');
+  const searchInput = document.getElementById('search-input');
   const cards = loadCards();
 
   renderShelf(shelf, cards);
   updateCounter();
+
+  // Фильтрация по мере ввода в поле поиска
+  searchInput.addEventListener('input', () => filterCards(shelf, searchInput.value));
 
   // Удаление карточки по кнопке «×»: индекс берём из положения карточки на полке
   shelf.addEventListener('click', (event) => {
@@ -116,6 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveCards(cards);
     card.remove();
     updateCounter();
+    filterCards(shelf, searchInput.value);
   });
 
   // Добавление новой карточки из формы
@@ -138,6 +157,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveCards(cards);
     shelf.append(createCardElement(card));
     updateCounter();
+    filterCards(shelf, searchInput.value);
 
     form.reset();
     form.elements.title.focus();

@@ -22,8 +22,14 @@
       <button type="submit">Добавить</button>
     </form>
 
+    <!-- Поиск по названию: карточки фильтруются по мере ввода -->
+    <div class="search">
+      <input id="search-input" type="search" placeholder="Поиск по названию" aria-label="Поиск по названию" autocomplete="off">
+    </div>
+
     <!-- Карточки рисуются скриптом из localStorage -->
     <section class="shelf" aria-label="Игры"></section>
+    <p class="shelf-empty" id="shelf-empty" hidden>Ничего не найдено</p>
   </main>
 
   <footer class="site-footer">

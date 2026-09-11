@@ -159,7 +159,16 @@ function filterCards(shelf, query, activeTag) {
     card.hidden = !match;
     if (match) visible += 1;
   }
-  document.getElementById('shelf-empty').hidden = visible > 0;
+
+  // Подсказка под полкой: полка пуста совсем или просто ничего не нашлось
+  const emptyMessage = document.getElementById('shelf-empty');
+  if (shelf.children.length === 0) {
+    emptyMessage.textContent = 'Полка пуста, добавьте первую карточку';
+    emptyMessage.hidden = false;
+  } else {
+    emptyMessage.textContent = 'Ничего не найдено';
+    emptyMessage.hidden = visible > 0;
+  }
 }
 
 // Собирает все уникальные теги коллекции по алфавиту
@@ -267,6 +276,12 @@ document.addEventListener('DOMContentLoaded', () => {
   renderShelf(shelf, cards);
   updateCounter();
   refreshTagFilter();
+  applyFilter();
+
+  // Пока пользователь правит название, предыдущее сообщение об ошибке снимаем
+  form.elements.title.addEventListener('input', () => {
+    form.elements.title.setCustomValidity('');
+  });
 
   // Фильтрация по мере ввода в поле поиска
   searchInput.addEventListener('input', applyFilter);
@@ -333,8 +348,12 @@ document.addEventListener('DOMContentLoaded', () => {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
 
+    // Атрибут required пропускает строку из пробелов, поэтому проверяем сами
+    // и показываем стандартную браузерную подсказку у поля
     const card = readForm(form);
     if (!card.title) {
+      form.elements.title.setCustomValidity('Введите название игры');
+      form.elements.title.reportValidity();
       return;
     }
 

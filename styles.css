@@ -1,7 +1,10 @@
 :root {
-  --bg: #12141c;
-  --surface: #1c1f2b;
-  --surface-hover: #232736;
+  /* Тёмно-синяя палитра */
+  --bg: #0b1730;
+  --surface: #14224a;
+  --surface-hover: #1b2d5e;
+  --cover-top: #22386f;
+  --cover-bottom: #10203f;
   --text: #ecedf3;
   --muted: #8f94a8;
   --accent: #7c5cff;
@@ -206,11 +209,14 @@ main {
   background: var(--accent);
 }
 
-/* Подсказка, когда поиск ничего не нашёл */
+/* Подсказка под полкой: полка пуста или поиск ничего не нашёл */
 .shelf-empty {
-  margin: 2rem 0;
+  margin: 0;
+  padding: 3rem 1rem;
   text-align: center;
   color: var(--muted);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
 }
 
 .shelf {
@@ -274,7 +280,7 @@ main {
   font-size: 4rem;
   line-height: 1;
   margin-bottom: 1rem;
-  background: linear-gradient(160deg, #2a2e42, #191c28);
+  background: linear-gradient(160deg, var(--cover-top), var(--cover-bottom));
   border-radius: 10px;
   padding: 1.5rem 0;
 }
@@ -323,4 +329,60 @@ main {
   color: var(--muted);
   font-size: 0.85rem;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* На сенсорных экранах наведения нет, поэтому кнопки карточки видны всегда */
+@media (hover: none) {
+  .game-actions button {
+    opacity: 1;
+  }
+}
+
+/* Узкий экран телефона: одна колонка, поля и кнопки во всю ширину */
+@media (max-width: 480px) {
+  .site-header {
+    padding: 1.75rem 1rem 1.25rem;
+  }
+
+  .site-header h1 {
+    font-size: 1.7rem;
+  }
+
+  main {
+    padding: 1.25rem 1rem;
+  }
+
+  .add-form {
+    padding: 1rem;
+  }
+
+  .add-form input,
+  .add-form input[name="cover"],
+  .add-form button {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .add-form input[name="cover"] {
+    text-align: left;
+  }
+
+  .search {
+    flex-wrap: wrap;
+  }
+
+  .search input,
+  #reset-filters {
+    flex: 1 1 100%;
+  }
+
+  .shelf {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+
+  .game-cover {
+    font-size: 3rem;
+    padding: 1rem 0;
+  }
 }

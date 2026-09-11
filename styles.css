@@ -90,7 +90,8 @@ main {
 }
 
 .add-form input[name="title"],
-.add-form input[name="caption"] {
+.add-form input[name="caption"],
+.add-form input[name="tags"] {
   flex: 1 1 200px;
 }
 
@@ -235,6 +236,25 @@ main {
   margin: 0;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+/* Теги карточки */
+.game-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: center;
+  margin: 0.6rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.game-tag {
+  font-size: 0.75rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(124, 92, 255, 0.15);
+  color: var(--accent);
 }
 
 .site-footer {

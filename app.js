@@ -8,11 +8,33 @@ const DEFAULT_COVER = '🎮';
 
 // Стартовые карточки: записываются в хранилище при первом открытии страницы
 const DEFAULT_CARDS = [
-  { title: 'Hollow Knight', caption: 'Team Cherry · Метроидвания, 2017', cover: '🐛' },
-  { title: 'Sekiro: Shadows Die Twice', caption: 'FromSoftware · Экшен, 2019', cover: '⚔️' },
-  { title: 'Dark Souls III', caption: 'FromSoftware · Action RPG, 2016', cover: '🔥' },
-  { title: 'NieR: Automata', caption: 'PlatinumGames · Action RPG, 2017', cover: '🤖' },
+  { title: 'Hollow Knight', caption: 'Team Cherry · Метроидвания, 2017', cover: '🐛', tags: ['метроидвания', 'инди'] },
+  { title: 'Sekiro: Shadows Die Twice', caption: 'FromSoftware · Экшен, 2019', cover: '⚔️', tags: ['экшен', 'fromsoftware'] },
+  { title: 'Dark Souls III', caption: 'FromSoftware · Action RPG, 2016', cover: '🔥', tags: ['rpg', 'fromsoftware'] },
+  { title: 'NieR: Automata', caption: 'PlatinumGames · Action RPG, 2017', cover: '🤖', tags: ['rpg', 'экшен'] },
 ];
+
+// Разбирает строку «Инди, RPG , инди» в массив ['инди', 'rpg']:
+// без пробелов по краям, в нижнем регистре, без пустых и повторов
+function parseTags(text) {
+  const tags = String(text || '')
+    .split(',')
+    .map((tag) => tag.trim().toLowerCase())
+    .filter(Boolean);
+  return [...new Set(tags)];
+}
+
+// Приводит запись из хранилища к ожидаемой форме: строки в полях и массив тегов.
+// Нужна для старых записей, сохранённых до появления тегов
+function normalizeCard(raw) {
+  const card = raw && typeof raw === 'object' ? raw : {};
+  return {
+    title: String(card.title || ''),
+    caption: String(card.caption || ''),
+    cover: String(card.cover || ''),
+    tags: Array.isArray(card.tags) ? parseTags(card.tags.join(',')) : [],
+  };
+}
 
 // Сохраняет массив карточек в localStorage
 function saveCards(cards) {
@@ -24,7 +46,7 @@ function loadCards() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(parsed)) {
-      return parsed;
+      return parsed.map(normalizeCard);
     }
   } catch (error) {
     // Битый JSON — ниже подставим стартовые карточки
@@ -36,7 +58,7 @@ function loadCards() {
 
 // Собирает DOM-элемент карточки. Текст вставляется через textContent, поэтому
 // разметка в названии не исполняется
-function createCardElement({ title, caption, cover }) {
+function createCardElement({ title, caption, cover, tags = [] }) {
   const article = document.createElement('article');
   article.className = 'game-card';
 
@@ -76,6 +98,19 @@ function createCardElement({ title, caption, cover }) {
     captionEl.className = 'game-caption';
     captionEl.textContent = captionText;
     article.append(captionEl);
+  }
+
+  // Теги показываем чипами под подписью
+  if (tags.length) {
+    const list = document.createElement('ul');
+    list.className = 'game-tags';
+    for (const tag of tags) {
+      const item = document.createElement('li');
+      item.className = 'game-tag';
+      item.textContent = tag;
+      list.append(item);
+    }
+    article.append(list);
   }
 
   return article;
@@ -128,6 +163,7 @@ function readForm(form) {
     title: String(data.get('title') || '').trim(),
     caption: String(data.get('caption') || '').trim(),
     cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
+    tags: parseTags(data.get('tags')),
   };
 }
 
@@ -137,6 +173,7 @@ function fillForm(form, card, index) {
   form.elements.title.value = card.title;
   form.elements.caption.value = card.caption || '';
   form.elements.cover.value = card.cover || '';
+  form.elements.tags.value = (card.tags || []).join(', ');
   form.classList.add('is-editing');
   document.getElementById('form-title').textContent = 'Редактировать игру';
   document.getElementById('submit-btn').textContent = 'Сохранить';

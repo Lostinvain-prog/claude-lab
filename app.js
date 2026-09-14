@@ -314,16 +314,17 @@ function pluralize(count, one, few, many) {
   return many;
 }
 
-// Обновляет счётчик в шапке: считает все карточки, независимо от вкладки
-function updateCounter(cards) {
-  const count = cards.length;
+// Обновляет счётчик в шапке: считает карточки открытой вкладки.
+// На «Играл» — все игры, на «Любимых» — только отмеченные сердечком
+function updateCounter(cards, collection, favorites) {
+  const count = cards.filter((card) => inCollection(card, collection, favorites)).length;
   const counter = document.getElementById('card-count');
   counter.textContent = `${count} ${pluralize(count, 'игра', 'игры', 'игр')}`;
 }
 
 // Скрывает карточки, которые не подходят под поиск по названию (без учёта
 // регистра) и под выбранный тег. Пустой запрос и пустой тег ничего не отсеивают
-function filterCards(shelf, query, activeTag) {
+function filterCards(shelf, query, activeTag, collection) {
   const needle = query.trim().toLowerCase();
   let visible = 0;
   for (const card of shelf.children) {
@@ -336,10 +337,13 @@ function filterCards(shelf, query, activeTag) {
     if (match) visible += 1;
   }
 
-  // Подсказка под полкой: полка пуста совсем или просто ничего не нашлось
+  // Подсказка под полкой: полка пуста совсем (у каждой вкладки свой текст)
+  // или просто ничего не нашлось
   const emptyMessage = document.getElementById('shelf-empty');
   if (shelf.children.length === 0) {
-    emptyMessage.textContent = 'Полка пуста, добавьте первую карточку';
+    emptyMessage.textContent = collection === 'favorite'
+      ? 'Любимых пока нет, отметьте игру сердечком на карточке'
+      : 'Полка пуста, добавьте первую карточку';
     emptyMessage.hidden = false;
   } else {
     emptyMessage.textContent = 'Ничего не найдено';
@@ -485,7 +489,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Применяет поиск и фильтр по тегу к текущей полке. Кнопка «Сбросить»
   // видна, только когда есть что сбрасывать
   function applyFilter() {
-    filterCards(shelf, searchInput.value, activeTag);
+    filterCards(shelf, searchInput.value, activeTag, collection);
     resetBtn.hidden = searchInput.value.trim() === '' && activeTag === '';
   }
 
@@ -509,7 +513,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Полная перерисовка: полка в выбранном порядке, счётчик, чипы и фильтр
   function rerender() {
     renderShelf(shelf, cards, sortMode, collection, favorites);
-    updateCounter(cards);
+    updateCounter(cards, collection, favorites);
     refreshTagFilter();
     applyFilter();
   }

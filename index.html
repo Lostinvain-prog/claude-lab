@@ -75,6 +75,20 @@
     <section class="tierlist" id="tierlist" aria-label="Тирлист" hidden></section>
   </main>
 
+  <!-- Диалог мнения об игре: открывается кликом по карточке (notes.js).
+       Название подставляется скриптом, мнения лежат в localStorage под ключом shelf-notes -->
+  <dialog class="note-dialog" id="note-dialog" aria-labelledby="note-dialog-title">
+    <form class="note-form" method="dialog">
+      <h2 class="note-dialog__title" id="note-dialog-title">Мнение об игре</h2>
+      <textarea id="note-text" name="note" maxlength="500" rows="6" placeholder="Что думаете об этой игре?" aria-label="Мнение об игре"></textarea>
+      <div class="note-dialog__actions">
+        <button type="submit" id="note-save">Сохранить</button>
+        <button type="button" id="note-delete" hidden>Удалить</button>
+        <button type="button" id="note-cancel">Отмена</button>
+      </div>
+    </form>
+  </dialog>
+
   <footer class="site-footer">
     <p>Полка Lostinvain</p>
   </footer>
@@ -82,5 +96,6 @@
   <script src="app.js"></script>
   <script src="export.js"></script>
   <script src="tierlist.js"></script>
+  <script src="notes.js"></script>
 </body>
 </html>

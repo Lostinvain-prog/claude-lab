@@ -16,6 +16,11 @@
   box-sizing: border-box;
 }
 
+/* Атрибут hidden должен побеждать любые правила display у скрываемых блоков */
+[hidden] {
+  display: none !important;
+}
+
 body {
   margin: 0;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;

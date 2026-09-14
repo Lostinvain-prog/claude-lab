@@ -139,23 +139,6 @@ main {
   text-align: center;
 }
 
-/* Выбор коллекции в форме выглядит как поле ввода */
-.add-form select {
-  padding: 0.6rem 0.8rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--bg);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 10px;
-  cursor: pointer;
-}
-
-.add-form select:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-glow);
-}
-
 .add-form button {
   padding: 0.6rem 1.2rem;
   font: inherit;
@@ -338,7 +321,7 @@ main {
   box-shadow: 0 8px 24px var(--accent-glow);
 }
 
-/* Кнопки «✎» и «×» в углу карточки: появляются при наведении */
+/* Кнопки «♡», «✎» и «×» в углу карточки: появляются при наведении */
 .game-actions {
   position: absolute;
   top: 0.5rem;
@@ -371,6 +354,16 @@ main {
 .game-actions button:hover {
   color: var(--text);
   border-color: var(--accent);
+}
+
+/* Сердечко: у любимой игры закрашено акцентом и видно всегда, не только при наведении */
+.game-fav[aria-pressed="true"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.game-card.is-favorite .game-fav {
+  opacity: 1;
 }
 
 .game-cover {
@@ -469,7 +462,6 @@ main {
 
   .add-form input,
   .add-form input[name="cover"],
-  .add-form select,
   .add-form button {
     flex: 1 1 100%;
     width: 100%;

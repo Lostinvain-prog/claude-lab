@@ -193,7 +193,7 @@
     if (cards.length === 0) {
       const empty = document.createElement('p');
       empty.className = 'tier-empty';
-      empty.textContent = 'Полка пуста — добавьте карточки на вкладках «Любимые» или «Играл»';
+      empty.textContent = 'Полка пуста — добавьте карточки на вкладке «Играл»';
       pool.append(empty);
     }
 

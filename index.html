@@ -36,6 +36,19 @@
     <!-- Фильтр по тегу: чипы рисуются скриптом по тегам всех карточек -->
     <div class="tag-filter" id="tag-filter" role="group" aria-label="Фильтр по тегам"></div>
 
+    <!-- Панель полки: сортировка (app.js) и экспорт коллекции (export.js) -->
+    <div class="shelf-toolbar">
+      <label class="sort-control">
+        Сортировка
+        <select id="sort-select" aria-label="Сортировка карточек">
+          <option value="added">Как добавлены</option>
+          <option value="title">По названию</option>
+          <option value="year">По году</option>
+        </select>
+      </label>
+      <button type="button" id="export-btn">Экспорт в JSON</button>
+    </div>
+
     <!-- Карточки рисуются скриптом из localStorage -->
     <section class="shelf" aria-label="Игры"></section>
     <p class="shelf-empty" id="shelf-empty" hidden>Ничего не найдено</p>
@@ -46,5 +59,6 @@
   </footer>
 
   <script src="app.js"></script>
+  <script src="export.js"></script>
 </body>
 </html>

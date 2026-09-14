@@ -210,6 +210,50 @@ main {
   background: var(--accent);
 }
 
+/* Панель полки: слева выбор сортировки, справа кнопка экспорта */
+.shelf-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.sort-control {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Выпадающий список и кнопка панели выглядят как кнопка «Сбросить» */
+.shelf-toolbar select,
+.shelf-toolbar button {
+  padding: 0.7rem 1.1rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.shelf-toolbar select:hover,
+.shelf-toolbar button:hover {
+  border-color: var(--accent);
+}
+
+.shelf-toolbar select:focus,
+.shelf-toolbar button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
 /* Подсказка под полкой: полка пуста или поиск ничего не нашёл */
 .shelf-empty {
   margin: 0;
@@ -389,6 +433,13 @@ main {
   .search input,
   #reset-filters {
     flex: 1 1 100%;
+  }
+
+  .sort-control,
+  .shelf-toolbar select,
+  .shelf-toolbar button {
+    flex: 1 1 100%;
+    width: 100%;
   }
 
   .shelf {

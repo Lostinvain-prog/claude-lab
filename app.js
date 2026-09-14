@@ -3,6 +3,12 @@
 // Ключ, под которым карточки лежат в localStorage
 const STORAGE_KEY = 'shelf-cards';
 
+// Ключ, под которым хранится выбранный режим сортировки
+const SORT_KEY = 'shelf-sort';
+
+// Допустимые режимы сортировки: как добавлены, по названию, по году
+const SORT_MODES = ['added', 'title', 'year'];
+
 // Эмодзи-обложка по умолчанию, если пользователь ничего не ввёл
 const DEFAULT_COVER = '🎮';
 
@@ -57,11 +63,52 @@ function loadCards() {
   return cards;
 }
 
+// Сохраняет режим сортировки в localStorage
+function saveSortMode(mode) {
+  localStorage.setItem(SORT_KEY, mode);
+}
+
+// Читает режим сортировки из localStorage; неизвестное значение → 'added'
+function loadSortMode() {
+  const mode = localStorage.getItem(SORT_KEY);
+  return SORT_MODES.includes(mode) ? mode : 'added';
+}
+
+// Достаёт год из подписи: последнее четырёхзначное число вида 19xx/20xx.
+// 'FromSoftware · Action RPG, 2016' → 2016, 'Инди' → null
+function extractYear(caption) {
+  const matches = String(caption || '').match(/\b(19|20)\d{2}\b/g);
+  return matches ? Number(matches[matches.length - 1]) : null;
+}
+
+// Возвращает пары { card, index } в порядке показа, не мутируя массив cards.
+// Индекс нужен, чтобы правка и удаление попадали в нужную карточку массива
+function sortedEntries(cards, sortMode) {
+  const entries = cards.map((card, index) => ({ card, index }));
+  const byTitle = (a, b) => a.card.title.localeCompare(b.card.title, 'ru');
+  if (sortMode === 'title') {
+    entries.sort(byTitle);
+  } else if (sortMode === 'year') {
+    // Новые сверху, без года — в конце, при равном годе — по названию
+    entries.sort((a, b) => {
+      const yearA = extractYear(a.card.caption);
+      const yearB = extractYear(b.card.caption);
+      if (yearA === null && yearB === null) return byTitle(a, b);
+      if (yearA === null) return 1;
+      if (yearB === null) return -1;
+      return yearB - yearA || byTitle(a, b);
+    });
+  }
+  return entries;
+}
+
 // Собирает DOM-элемент карточки. Текст вставляется через textContent, поэтому
-// разметка в названии не исполняется
-function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }) {
+// разметка в названии не исполняется. index — позиция карточки в массиве cards,
+// а не на полке: при сортировке они различаются
+function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, index) {
   const article = document.createElement('article');
   article.className = 'game-card';
+  article.dataset.index = String(index);
   // Теги дублируем в data-атрибут, чтобы фильтр не разбирал разметку чипов
   article.dataset.tags = tags.join(',');
 
@@ -135,9 +182,10 @@ function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }) 
   return article;
 }
 
-// Перерисовывает полку целиком по массиву карточек
-function renderShelf(shelf, cards) {
-  shelf.replaceChildren(...cards.map(createCardElement));
+// Перерисовывает полку целиком по массиву карточек в выбранном порядке
+function renderShelf(shelf, cards, sortMode) {
+  const elements = sortedEntries(cards, sortMode).map(({ card, index }) => createCardElement(card, index));
+  shelf.replaceChildren(...elements);
 }
 
 // Считает количество карточек игр на полке и возвращает число
@@ -262,10 +310,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchInput = document.getElementById('search-input');
   const tagFilter = document.getElementById('tag-filter');
   const resetBtn = document.getElementById('reset-filters');
+  const sortSelect = document.getElementById('sort-select');
   const cards = loadCards();
 
   // Выбранный тег фильтра; пустая строка — фильтр не выбран
   let activeTag = '';
+
+  // Режим сортировки восстанавливаем из хранилища и показываем в селекте
+  let sortMode = loadSortMode();
+  sortSelect.value = sortMode;
 
   // Применяет поиск и фильтр по тегу к текущей полке. Кнопка «Сбросить»
   // видна, только когда есть что сбрасывать
@@ -291,10 +344,22 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTagFilter(tagFilter, tags, activeTag);
   }
 
-  renderShelf(shelf, cards);
-  updateCounter();
-  refreshTagFilter();
-  applyFilter();
+  // Полная перерисовка: полка в выбранном порядке, счётчик, чипы и фильтр
+  function rerender() {
+    renderShelf(shelf, cards, sortMode);
+    updateCounter();
+    refreshTagFilter();
+    applyFilter();
+  }
+
+  rerender();
+
+  // Смена режима сортировки: запомнить и перерисовать полку
+  sortSelect.addEventListener('change', () => {
+    sortMode = SORT_MODES.includes(sortSelect.value) ? sortSelect.value : 'added';
+    saveSortMode(sortMode);
+    rerender();
+  });
 
   // Пока пользователь правит название, предыдущее сообщение об ошибке снимаем
   form.elements.title.addEventListener('input', () => {
@@ -321,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Кнопки на карточке: «✎» открывает правку, «×» удаляет.
-  // Индекс берём из положения карточки на полке
+  // Индекс берём из data-index, а не из положения на полке: полка может быть отсортирована
   shelf.addEventListener('click', (event) => {
     // Клик по чипу тега на карточке включает фильтр по этому тегу
     const tagChip = event.target.closest('.game-tag');
@@ -335,7 +400,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     const card = button.closest('.game-card');
-    const index = Array.from(shelf.children).indexOf(card);
+    const index = Number(card.dataset.index);
 
     if (button.classList.contains('game-edit')) {
       fillForm(form, cards[index], index);
@@ -344,14 +409,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     cards.splice(index, 1);
     saveCards(cards);
-    card.remove();
     // После удаления индексы сдвигаются, поэтому незавершённую правку сбрасываем
     if (editingIndex(form) !== -1) {
       resetForm(form);
     }
-    updateCounter();
-    refreshTagFilter();
-    applyFilter();
+    rerender();
   });
 
   // Отмена правки кнопкой или клавишей Escape
@@ -378,16 +440,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const index = editingIndex(form);
     if (index !== -1) {
       cards[index] = card;
-      shelf.children[index].replaceWith(createCardElement(card));
     } else {
       cards.push(card);
-      shelf.append(createCardElement(card));
     }
 
+    // Перерисовываем полку целиком, чтобы карточка сразу встала на место по сортировке
     saveCards(cards);
-    updateCounter();
-    refreshTagFilter();
-    applyFilter();
+    rerender();
 
     resetForm(form);
     form.elements.title.focus();

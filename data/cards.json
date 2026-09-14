@@ -1,0 +1,8 @@
+[
+  { "title": "Hollow Knight", "caption": "Team Cherry · Метроидвания, 2017", "cover": "🐛", "tags": ["метроидвания", "инди"] },
+  { "title": "Sekiro: Shadows Die Twice", "caption": "FromSoftware · Экшен, 2019", "cover": "⚔️", "tags": ["экшен", "fromsoftware"] },
+  { "title": "Dark Souls III", "caption": "FromSoftware · Action RPG, 2016", "cover": "🔥", "tags": ["rpg", "fromsoftware"] },
+  { "title": "NieR: Automata", "caption": "PlatinumGames · Action RPG, 2017", "cover": "🤖", "tags": ["rpg", "экшен"] },
+  { "title": "Celeste", "caption": "Maddy Makes Games · Платформер, 2018", "cover": "🏔️", "tags": ["платформер", "инди"], "collection": "played" },
+  { "title": "Stardew Valley", "caption": "ConcernedApe · Симулятор фермы, 2016", "cover": "🌾", "tags": ["симулятор", "инди"], "collection": "played" }
+]

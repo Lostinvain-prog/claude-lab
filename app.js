@@ -9,16 +9,20 @@ const SORT_KEY = 'shelf-sort';
 // Допустимые режимы сортировки: как добавлены, по названию, по году
 const SORT_MODES = ['added', 'title', 'year'];
 
+// Ключ, под которым хранится активная вкладка
+const TAB_KEY = 'shelf-tab';
+
+// Коллекции карточек: любимые и все, во что играл
+const COLLECTIONS = ['favorite', 'played'];
+
+// Вкладки страницы: две коллекции и тирлист
+const TABS = [...COLLECTIONS, 'tierlist'];
+
 // Эмодзи-обложка по умолчанию, если пользователь ничего не ввёл
 const DEFAULT_COVER = '🎮';
 
-// Стартовые карточки: записываются в хранилище при первом открытии страницы
-const DEFAULT_CARDS = [
-  { title: 'Hollow Knight', caption: 'Team Cherry · Метроидвания, 2017', cover: '🐛', tags: ['метроидвания', 'инди'] },
-  { title: 'Sekiro: Shadows Die Twice', caption: 'FromSoftware · Экшен, 2019', cover: '⚔️', tags: ['экшен', 'fromsoftware'] },
-  { title: 'Dark Souls III', caption: 'FromSoftware · Action RPG, 2016', cover: '🔥', tags: ['rpg', 'fromsoftware'] },
-  { title: 'NieR: Automata', caption: 'PlatinumGames · Action RPG, 2017', cover: '🤖', tags: ['rpg', 'экшен'] },
-];
+// Файл со стартовыми карточками: подгружается при первом открытии страницы
+const DEFAULT_CARDS_URL = 'data/cards.json';
 
 // Разбирает строку «Инди, RPG , инди» в массив ['инди', 'rpg']:
 // без пробелов по краям, в нижнем регистре, без пустых и повторов
@@ -31,7 +35,8 @@ function parseTags(text) {
 }
 
 // Приводит запись из хранилища к ожидаемой форме: строки в полях и массив тегов.
-// Нужна для старых записей, сохранённых до появления тегов и ссылки на обложку
+// Нужна для старых записей, сохранённых до появления тегов, ссылки на обложку
+// и коллекций: карточки без поля collection считаются любимыми
 function normalizeCard(raw) {
   const card = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -40,6 +45,7 @@ function normalizeCard(raw) {
     cover: String(card.cover || ''),
     coverUrl: String(card.coverUrl || '').trim(),
     tags: Array.isArray(card.tags) ? parseTags(card.tags.join(',')) : [],
+    collection: COLLECTIONS.includes(card.collection) ? card.collection : 'favorite',
   };
 }
 
@@ -48,18 +54,53 @@ function saveCards(cards) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
 }
 
-// Читает карточки из localStorage. Если там пусто или мусор — заполняет стартовыми
-function loadCards() {
+// Читает карточки из localStorage. Возвращает null, если там пусто или мусор
+function loadStoredCards() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(parsed)) {
       return parsed.map(normalizeCard);
     }
   } catch (error) {
-    // Битый JSON — ниже подставим стартовые карточки
+    // Битый JSON — считаем, что сохранённых карточек нет
   }
-  const cards = DEFAULT_CARDS.map((card) => ({ ...card }));
-  saveCards(cards);
+  return null;
+}
+
+// Читает карточки из localStorage для внешних скриптов (export.js).
+// После запуска страницы хранилище уже заполнено; если нет — пустой массив
+function loadCards() {
+  return loadStoredCards() || [];
+}
+
+// Загружает стартовые карточки из data/cards.json. Если файл недоступен
+// (например, страница открыта по file:// и fetch запрещён) — возвращает пустой
+// массив, чтобы полка всё равно заработала
+async function fetchDefaultCards() {
+  try {
+    const response = await fetch(DEFAULT_CARDS_URL);
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+    const parsed = await response.json();
+    return Array.isArray(parsed) ? parsed.map(normalizeCard) : [];
+  } catch (error) {
+    console.warn('Не удалось загрузить стартовые карточки:', error);
+    return [];
+  }
+}
+
+// Возвращает карточки для полки: сохранённые, а при первом открытии — стартовые
+// из файла, которые сразу записываются в хранилище
+async function initCards() {
+  const stored = loadStoredCards();
+  if (stored) {
+    return stored;
+  }
+  const cards = await fetchDefaultCards();
+  if (cards.length > 0) {
+    saveCards(cards);
+  }
   return cards;
 }
 
@@ -74,6 +115,17 @@ function loadSortMode() {
   return SORT_MODES.includes(mode) ? mode : 'added';
 }
 
+// Сохраняет активную вкладку в localStorage
+function saveTab(tab) {
+  localStorage.setItem(TAB_KEY, tab);
+}
+
+// Читает активную вкладку из localStorage; неизвестное значение → 'favorite'
+function loadTab() {
+  const tab = localStorage.getItem(TAB_KEY);
+  return TABS.includes(tab) ? tab : 'favorite';
+}
+
 // Достаёт год из подписи: последнее четырёхзначное число вида 19xx/20xx.
 // 'FromSoftware · Action RPG, 2016' → 2016, 'Инди' → null
 function extractYear(caption) {
@@ -81,10 +133,13 @@ function extractYear(caption) {
   return matches ? Number(matches[matches.length - 1]) : null;
 }
 
-// Возвращает пары { card, index } в порядке показа, не мутируя массив cards.
-// Индекс нужен, чтобы правка и удаление попадали в нужную карточку массива
-function sortedEntries(cards, sortMode) {
-  const entries = cards.map((card, index) => ({ card, index }));
+// Возвращает пары { card, index } выбранной коллекции в порядке показа, не мутируя
+// массив cards. Индекс — позиция в общем массиве, а не в коллекции: он нужен,
+// чтобы правка и удаление попадали в нужную карточку
+function sortedEntries(cards, sortMode, collection) {
+  const entries = cards
+    .map((card, index) => ({ card, index }))
+    .filter(({ card }) => card.collection === collection);
   const byTitle = (a, b) => a.card.title.localeCompare(b.card.title, 'ru');
   if (sortMode === 'title') {
     entries.sort(byTitle);
@@ -182,15 +237,10 @@ function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, 
   return article;
 }
 
-// Перерисовывает полку целиком по массиву карточек в выбранном порядке
-function renderShelf(shelf, cards, sortMode) {
-  const elements = sortedEntries(cards, sortMode).map(({ card, index }) => createCardElement(card, index));
+// Перерисовывает полку целиком карточками выбранной коллекции в выбранном порядке
+function renderShelf(shelf, cards, sortMode, collection) {
+  const elements = sortedEntries(cards, sortMode, collection).map(({ card, index }) => createCardElement(card, index));
   shelf.replaceChildren(...elements);
-}
-
-// Считает количество карточек игр на полке и возвращает число
-function countCards() {
-  return document.querySelectorAll('.shelf .game-card').length;
 }
 
 // Подбирает форму слова под число: 1 игра, 2 игры, 5 игр, 21 игра
@@ -202,9 +252,9 @@ function pluralize(count, one, few, many) {
   return many;
 }
 
-// Обновляет счётчик карточек в шапке по текущему состоянию полки
-function updateCounter() {
-  const count = countCards();
+// Обновляет счётчик в шапке: считает карточки обеих коллекций
+function updateCounter(cards) {
+  const count = cards.length;
   const counter = document.getElementById('card-count');
   counter.textContent = `${count} ${pluralize(count, 'игра', 'игры', 'игр')}`;
 }
@@ -235,10 +285,11 @@ function filterCards(shelf, query, activeTag) {
   }
 }
 
-// Собирает все уникальные теги коллекции по алфавиту
-function collectTags(cards) {
+// Собирает все уникальные теги выбранной коллекции по алфавиту
+function collectTags(cards, collection) {
   const all = new Set();
   for (const card of cards) {
+    if (card.collection !== collection) continue;
     for (const tag of card.tags || []) all.add(tag);
   }
   return [...all].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -268,6 +319,7 @@ function readForm(form) {
     cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
     coverUrl: String(data.get('coverUrl') || '').trim(),
     tags: parseTags(data.get('tags')),
+    collection: COLLECTIONS.includes(data.get('collection')) ? data.get('collection') : 'favorite',
   };
 }
 
@@ -279,6 +331,7 @@ function fillForm(form, card, index) {
   form.elements.cover.value = card.cover || '';
   form.elements.coverUrl.value = card.coverUrl || '';
   form.elements.tags.value = (card.tags || []).join(', ');
+  form.elements.collection.value = card.collection || 'favorite';
   form.classList.add('is-editing');
   document.getElementById('form-title').textContent = 'Редактировать игру';
   document.getElementById('submit-btn').textContent = 'Сохранить';
@@ -287,10 +340,11 @@ function fillForm(form, card, index) {
   form.elements.title.focus();
 }
 
-// Возвращает форму в режим добавления
-function resetForm(form) {
+// Возвращает форму в режим добавления; коллекция по умолчанию — открытая вкладка
+function resetForm(form, collection = 'favorite') {
   form.reset();
   form.elements.index.value = '';
+  form.elements.collection.value = collection;
   form.classList.remove('is-editing');
   document.getElementById('form-title').textContent = 'Добавить игру';
   document.getElementById('submit-btn').textContent = 'Добавить';
@@ -303,7 +357,7 @@ function editingIndex(form) {
   return value === '' ? -1 : Number(value);
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   const shelf = document.querySelector('.shelf');
   const form = document.getElementById('add-form');
   const cancelBtn = document.getElementById('cancel-edit');
@@ -311,7 +365,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const tagFilter = document.getElementById('tag-filter');
   const resetBtn = document.getElementById('reset-filters');
   const sortSelect = document.getElementById('sort-select');
-  const cards = loadCards();
+  const tabs = document.getElementById('tabs');
+  const collectionView = document.getElementById('collection-view');
+  const tierlistView = document.getElementById('tierlist');
+  // Ждём стартовые карточки из файла, поэтому обработчик асинхронный
+  const cards = await initCards();
 
   // Выбранный тег фильтра; пустая строка — фильтр не выбран
   let activeTag = '';
@@ -319,6 +377,38 @@ document.addEventListener('DOMContentLoaded', () => {
   // Режим сортировки восстанавливаем из хранилища и показываем в селекте
   let sortMode = loadSortMode();
   sortSelect.value = sortMode;
+
+  // Активная вкладка и коллекция, которую показывает полка. На вкладке
+  // «Тирлист» полка скрыта, но коллекция остаётся последней открытой
+  let activeTab = loadTab();
+  let collection = COLLECTIONS.includes(activeTab) ? activeTab : 'favorite';
+
+  // Сообщает другим скриптам (tierlist.js), что карточки изменились
+  function notifyCardsChanged() {
+    document.dispatchEvent(new CustomEvent('shelf:cards-changed'));
+  }
+
+  // Переключает вкладку: подсвечивает кнопку, показывает полку или тирлист,
+  // запоминает выбор и сообщает о нём другим скриптам
+  function switchTab(tab) {
+    activeTab = TABS.includes(tab) ? tab : 'favorite';
+    saveTab(activeTab);
+    for (const button of tabs.querySelectorAll('[data-tab]')) {
+      button.setAttribute('aria-selected', String(button.dataset.tab === activeTab));
+    }
+    const showTierlist = activeTab === 'tierlist';
+    collectionView.hidden = showTierlist;
+    tierlistView.hidden = !showTierlist;
+    if (!showTierlist && collection !== activeTab) {
+      // Сменилась коллекция: фильтры и незавершённая правка теряют смысл
+      collection = activeTab;
+      searchInput.value = '';
+      activeTag = '';
+      resetForm(form, collection);
+      rerender();
+    }
+    document.dispatchEvent(new CustomEvent('shelf:tab', { detail: { tab: activeTab } }));
+  }
 
   // Применяет поиск и фильтр по тегу к текущей полке. Кнопка «Сбросить»
   // видна, только когда есть что сбрасывать
@@ -337,7 +427,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Перерисовывает чипы по актуальному набору тегов. Если выбранный тег
   // исчез из коллекции (карточку удалили или отредактировали), фильтр сбрасывается
   function refreshTagFilter() {
-    const tags = collectTags(cards);
+    const tags = collectTags(cards, collection);
     if (activeTag && !tags.includes(activeTag)) {
       activeTag = '';
     }
@@ -346,13 +436,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Полная перерисовка: полка в выбранном порядке, счётчик, чипы и фильтр
   function rerender() {
-    renderShelf(shelf, cards, sortMode);
-    updateCounter();
+    renderShelf(shelf, cards, sortMode, collection);
+    updateCounter(cards);
     refreshTagFilter();
     applyFilter();
   }
 
+  resetForm(form, collection);
   rerender();
+  switchTab(activeTab);
+  // Тирлист мог отрисоваться до того, как хранилище заполнилось стартовыми карточками
+  notifyCardsChanged();
+
+  // Клик по вкладке
+  tabs.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-tab]');
+    if (button) {
+      switchTab(button.dataset.tab);
+    }
+  });
 
   // Смена режима сортировки: запомнить и перерисовать полку
   sortSelect.addEventListener('change', () => {
@@ -411,16 +513,17 @@ document.addEventListener('DOMContentLoaded', () => {
     saveCards(cards);
     // После удаления индексы сдвигаются, поэтому незавершённую правку сбрасываем
     if (editingIndex(form) !== -1) {
-      resetForm(form);
+      resetForm(form, collection);
     }
     rerender();
+    notifyCardsChanged();
   });
 
   // Отмена правки кнопкой или клавишей Escape
-  cancelBtn.addEventListener('click', () => resetForm(form));
+  cancelBtn.addEventListener('click', () => resetForm(form, collection));
   form.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && editingIndex(form) !== -1) {
-      resetForm(form);
+      resetForm(form, collection);
     }
   });
 
@@ -444,11 +547,17 @@ document.addEventListener('DOMContentLoaded', () => {
       cards.push(card);
     }
 
-    // Перерисовываем полку целиком, чтобы карточка сразу встала на место по сортировке
+    // Перерисовываем полку целиком, чтобы карточка сразу встала на место по сортировке.
+    // Если карточку отправили в другую коллекцию, переходим на её вкладку
     saveCards(cards);
-    rerender();
+    if (card.collection !== collection) {
+      switchTab(card.collection);
+    } else {
+      rerender();
+    }
+    notifyCardsChanged();
 
-    resetForm(form);
+    resetForm(form, collection);
     form.elements.title.focus();
   });
 });

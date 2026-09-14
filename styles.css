@@ -52,6 +52,36 @@ main {
   padding: 2rem 1.5rem;
 }
 
+/* Вкладки разделов: «Любимые», «Играл», «Тирлист» */
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tabs button {
+  padding: 0.7rem 1.2rem;
+  font: inherit;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.tabs button:hover {
+  color: var(--text);
+}
+
+.tabs button[aria-selected="true"] {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
 /* Форма добавления игры */
 .add-form {
   display: flex;
@@ -102,6 +132,23 @@ main {
 .add-form input[name="cover"] {
   flex: 0 0 5rem;
   text-align: center;
+}
+
+/* Выбор коллекции в форме выглядит как поле ввода */
+.add-form select {
+  padding: 0.6rem 0.8rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.add-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
 .add-form button {
@@ -417,9 +464,15 @@ main {
 
   .add-form input,
   .add-form input[name="cover"],
+  .add-form select,
   .add-form button {
     flex: 1 1 100%;
     width: 100%;
+  }
+
+  .tabs button {
+    flex: 1 1 0;
+    padding: 0.6rem 0.5rem;
   }
 
   .add-form input[name="cover"] {
@@ -450,5 +503,172 @@ main {
   .game-cover {
     font-size: 3rem;
     padding: 1rem 0;
+  }
+}
+
+/* Тирлист */
+.tierlist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+/* Ряд: цветная метка слева и зона с плитками справа */
+.tier-row {
+  display: flex;
+  align-items: stretch;
+  background: var(--surface);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.tier-label {
+  flex: 0 0 4.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #0b1730;
+}
+
+/* Цвета меток рядов: от красного S до синего D */
+.tier-row[data-tier="S"] .tier-label { background: #ff6b6b; }
+.tier-row[data-tier="A"] .tier-label { background: #ffa94d; }
+.tier-row[data-tier="B"] .tier-label { background: #ffd43b; }
+.tier-row[data-tier="C"] .tier-label { background: #69db7c; }
+.tier-row[data-tier="D"] .tier-label { background: #4fd1ff; }
+
+/* Зона, куда бросают плитки */
+.tier-zone {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.5rem;
+  min-height: 80px;
+  padding: 0.5rem;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+
+/* Подсветка зоны, над которой тащат плитку */
+.tier-zone.is-over {
+  background: rgba(124, 92, 255, 0.15);
+  box-shadow: inset 0 0 0 2px var(--accent), inset 0 0 18px var(--accent-glow);
+}
+
+/* Плитка с обложкой: эмодзи или картинка */
+.tier-item {
+  width: 64px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  font-size: 2rem;
+  line-height: 1;
+  background: linear-gradient(160deg, var(--cover-top), var(--cover-bottom));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  cursor: grab;
+  user-select: none;
+  overflow: hidden;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+
+.tier-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
+.tier-item.is-dragging {
+  opacity: 0.4;
+  cursor: grabbing;
+}
+
+.tier-item.has-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+/* Зона «Не распределено» под рядами */
+.tier-unranked {
+  margin-top: 0.75rem;
+  background: var(--surface);
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius);
+}
+
+.tier-unranked__title {
+  margin: 0;
+  padding: 0.75rem 1rem 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.tier-unranked .tier-zone {
+  min-height: 96px;
+}
+
+.tier-empty {
+  margin: 0;
+  padding: 1rem 0.5rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* Кнопка сброса под рядами — в стиле кнопок панели полки */
+.tier-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 0.5rem;
+}
+
+.tier-toolbar button {
+  padding: 0.7rem 1.1rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface-hover);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--radius);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tier-toolbar button:hover {
+  border-color: var(--accent);
+}
+
+.tier-toolbar button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+/* Узкий экран: метки уже, плитки меньше, кнопка во всю ширину */
+@media (max-width: 480px) {
+  .tier-label {
+    flex-basis: 3rem;
+    font-size: 1.3rem;
+  }
+
+  .tier-item {
+    width: 52px;
+    height: 52px;
+    font-size: 1.6rem;
+  }
+
+  .tier-zone {
+    min-height: 68px;
+  }
+
+  .tier-toolbar button {
+    width: 100%;
   }
 }

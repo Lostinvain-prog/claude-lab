@@ -94,6 +94,7 @@ main {
 
 .add-form input[name="title"],
 .add-form input[name="caption"],
+.add-form input[name="coverUrl"],
 .add-form input[name="tags"] {
   flex: 1 1 200px;
 }
@@ -283,6 +284,20 @@ main {
   background: linear-gradient(160deg, var(--cover-top), var(--cover-bottom));
   border-radius: 10px;
   padding: 1.5rem 0;
+}
+
+/* Обложка-картинка: убираем отступы под эмодзи, картинка заполняет блок */
+.game-cover.has-image {
+  padding: 0;
+  overflow: hidden;
+  aspect-ratio: 3 / 4;
+}
+
+.game-cover.has-image img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .game-title {

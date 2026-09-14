@@ -25,13 +25,14 @@ function parseTags(text) {
 }
 
 // Приводит запись из хранилища к ожидаемой форме: строки в полях и массив тегов.
-// Нужна для старых записей, сохранённых до появления тегов
+// Нужна для старых записей, сохранённых до появления тегов и ссылки на обложку
 function normalizeCard(raw) {
   const card = raw && typeof raw === 'object' ? raw : {};
   return {
     title: String(card.title || ''),
     caption: String(card.caption || ''),
     cover: String(card.cover || ''),
+    coverUrl: String(card.coverUrl || '').trim(),
     tags: Array.isArray(card.tags) ? parseTags(card.tags.join(',')) : [],
   };
 }
@@ -58,7 +59,7 @@ function loadCards() {
 
 // Собирает DOM-элемент карточки. Текст вставляется через textContent, поэтому
 // разметка в названии не исполняется
-function createCardElement({ title, caption, cover, tags = [] }) {
+function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }) {
   const article = document.createElement('article');
   article.className = 'game-card';
   // Теги дублируем в data-атрибут, чтобы фильтр не разбирал разметку чипов
@@ -86,7 +87,22 @@ function createCardElement({ title, caption, cover, tags = [] }) {
   const coverEl = document.createElement('div');
   coverEl.className = 'game-cover';
   coverEl.setAttribute('aria-hidden', 'true');
-  coverEl.textContent = (cover || '').trim() || DEFAULT_COVER;
+  const emoji = (cover || '').trim() || DEFAULT_COVER;
+  const url = (coverUrl || '').trim();
+  if (url) {
+    // Картинка по ссылке; если она не загрузится — возвращаем эмодзи
+    const img = document.createElement('img');
+    img.src = url;
+    img.alt = '';
+    img.addEventListener('error', () => {
+      coverEl.classList.remove('has-image');
+      coverEl.textContent = emoji;
+    });
+    coverEl.classList.add('has-image');
+    coverEl.append(img);
+  } else {
+    coverEl.textContent = emoji;
+  }
   article.append(coverEl);
 
   const titleEl = document.createElement('h2');
@@ -202,6 +218,7 @@ function readForm(form) {
     title: String(data.get('title') || '').trim(),
     caption: String(data.get('caption') || '').trim(),
     cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
+    coverUrl: String(data.get('coverUrl') || '').trim(),
     tags: parseTags(data.get('tags')),
   };
 }
@@ -212,6 +229,7 @@ function fillForm(form, card, index) {
   form.elements.title.value = card.title;
   form.elements.caption.value = card.caption || '';
   form.elements.cover.value = card.cover || '';
+  form.elements.coverUrl.value = card.coverUrl || '';
   form.elements.tags.value = (card.tags || []).join(', ');
   form.classList.add('is-editing');
   document.getElementById('form-title').textContent = 'Редактировать игру';

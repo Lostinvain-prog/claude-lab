@@ -3,6 +3,10 @@
 // Ключ, под которым карточки лежат в localStorage
 const STORAGE_KEY = 'shelf-cards';
 
+// Ключ, под которым лежит массив названий любимых игр: ["Dota 2", "Kenshi"].
+// Признак «любимая» хранится отдельно от карточек, идентификация — по названию
+const FAVORITES_KEY = 'shelf-favorites';
+
 // Ключ, под которым хранится выбранный режим сортировки
 const SORT_KEY = 'shelf-sort';
 
@@ -12,7 +16,7 @@ const SORT_MODES = ['added', 'title', 'year'];
 // Ключ, под которым хранится активная вкладка
 const TAB_KEY = 'shelf-tab';
 
-// Коллекции карточек: любимые и все, во что играл
+// Вкладки с карточками: «Любимые» — подмножество «Играл», отмеченное сердечком
 const COLLECTIONS = ['favorite', 'played'];
 
 // Вкладки страницы: две коллекции и тирлист
@@ -35,8 +39,8 @@ function parseTags(text) {
 }
 
 // Приводит запись из хранилища к ожидаемой форме: строки в полях и массив тегов.
-// Нужна для старых записей, сохранённых до появления тегов, ссылки на обложку
-// и коллекций: карточки без поля collection считаются любимыми
+// Нужна для старых записей, сохранённых до появления тегов и ссылки на обложку.
+// Старое поле collection отбрасывается: признак «любимая» теперь живёт отдельно
 function normalizeCard(raw) {
   const card = raw && typeof raw === 'object' ? raw : {};
   return {
@@ -45,7 +49,6 @@ function normalizeCard(raw) {
     cover: String(card.cover || ''),
     coverUrl: String(card.coverUrl || '').trim(),
     tags: Array.isArray(card.tags) ? parseTags(card.tags.join(',')) : [],
-    collection: COLLECTIONS.includes(card.collection) ? card.collection : 'favorite',
   };
 }
 
@@ -54,11 +57,55 @@ function saveCards(cards) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(cards));
 }
 
+// Сохраняет список названий любимых игр в localStorage
+function saveFavorites(favorites) {
+  localStorage.setItem(FAVORITES_KEY, JSON.stringify(favorites));
+}
+
+// Читает список любимых из localStorage. Возвращает null, если ключа нет или там мусор
+function loadStoredFavorites() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(FAVORITES_KEY));
+    if (Array.isArray(parsed)) {
+      return [...new Set(parsed.filter((title) => typeof title === 'string'))];
+    }
+  } catch (error) {
+    // Битый JSON — считаем, что списка любимых нет
+  }
+  return null;
+}
+
+// Читает названия любимых игр для внешних скриптов; без ключа — пустой массив
+function loadFavorites() {
+  return loadStoredFavorites() || [];
+}
+
+// Проверяет по названию, отмечена ли игра как любимая
+function isFavorite(title) {
+  return loadFavorites().includes(title);
+}
+
+// Миграция со старой модели: раньше у карточки было поле collection
+// ('favorite' или 'played', без поля — 'favorite'). Если ключа shelf-favorites
+// ещё нет, собираем список любимых из таких записей и сохраняем его.
+// Пример: [{title: 'Kenshi'}, {title: 'Celeste', collection: 'played'}] → ['Kenshi']
+function migrateFavorites(rawCards) {
+  if (localStorage.getItem(FAVORITES_KEY) !== null) return;
+  const hasCollection = rawCards.some((card) => card && typeof card === 'object' && 'collection' in card);
+  if (!hasCollection) return;
+  const favorites = rawCards
+    .filter((card) => card && typeof card === 'object' && (card.collection === 'favorite' || !('collection' in card)))
+    .map((card) => String(card.title || ''))
+    .filter(Boolean);
+  saveFavorites([...new Set(favorites)]);
+}
+
 // Читает карточки из localStorage. Возвращает null, если там пусто или мусор
 function loadStoredCards() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY));
     if (Array.isArray(parsed)) {
+      migrateFavorites(parsed);
       return parsed.map(normalizeCard);
     }
   } catch (error) {
@@ -67,7 +114,7 @@ function loadStoredCards() {
   return null;
 }
 
-// Читает карточки из localStorage для внешних скриптов (export.js).
+// Читает карточки из localStorage для внешних скриптов (export.js, tierlist.js).
 // После запуска страницы хранилище уже заполнено; если нет — пустой массив
 function loadCards() {
   return loadStoredCards() || [];
@@ -120,10 +167,10 @@ function saveTab(tab) {
   localStorage.setItem(TAB_KEY, tab);
 }
 
-// Читает активную вкладку из localStorage; неизвестное значение → 'favorite'
+// Читает активную вкладку из localStorage; неизвестное значение → 'played'
 function loadTab() {
   const tab = localStorage.getItem(TAB_KEY);
-  return TABS.includes(tab) ? tab : 'favorite';
+  return TABS.includes(tab) ? tab : 'played';
 }
 
 // Достаёт год из подписи: последнее четырёхзначное число вида 19xx/20xx.
@@ -133,13 +180,19 @@ function extractYear(caption) {
   return matches ? Number(matches[matches.length - 1]) : null;
 }
 
-// Возвращает пары { card, index } выбранной коллекции в порядке показа, не мутируя
-// массив cards. Индекс — позиция в общем массиве, а не в коллекции: он нужен,
+// Проверяет, попадает ли карточка во вкладку: «Играл» показывает все,
+// «Любимые» — только те, чьё название есть в списке favorites
+function inCollection(card, collection, favorites) {
+  return collection !== 'favorite' || favorites.includes(card.title);
+}
+
+// Возвращает пары { card, index } выбранной вкладки в порядке показа, не мутируя
+// массив cards. Индекс — позиция в общем массиве, а не на вкладке: он нужен,
 // чтобы правка и удаление попадали в нужную карточку
-function sortedEntries(cards, sortMode, collection) {
+function sortedEntries(cards, sortMode, collection, favorites) {
   const entries = cards
     .map((card, index) => ({ card, index }))
-    .filter(({ card }) => card.collection === collection);
+    .filter(({ card }) => inCollection(card, collection, favorites));
   const byTitle = (a, b) => a.card.title.localeCompare(b.card.title, 'ru');
   if (sortMode === 'title') {
     entries.sort(byTitle);
@@ -159,17 +212,25 @@ function sortedEntries(cards, sortMode, collection) {
 
 // Собирает DOM-элемент карточки. Текст вставляется через textContent, поэтому
 // разметка в названии не исполняется. index — позиция карточки в массиве cards,
-// а не на полке: при сортировке они различаются
-function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, index) {
+// а не на полке: при сортировке они различаются. favorite — отмечена ли сердечком
+function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, index, favorite = false) {
   const article = document.createElement('article');
   article.className = 'game-card';
+  article.classList.toggle('is-favorite', favorite);
   article.dataset.index = String(index);
   // Теги дублируем в data-атрибут, чтобы фильтр не разбирал разметку чипов
   article.dataset.tags = tags.join(',');
 
-  // Кнопки редактирования и удаления; сама логика висит на полке (делегирование)
+  // Кнопки «сердечко», редактирования и удаления; сама логика висит на полке (делегирование)
   const actions = document.createElement('div');
   actions.className = 'game-actions';
+
+  const favBtn = document.createElement('button');
+  favBtn.type = 'button';
+  favBtn.className = 'game-fav';
+  favBtn.textContent = favorite ? '♥' : '♡';
+  favBtn.setAttribute('aria-pressed', String(favorite));
+  favBtn.setAttribute('aria-label', favorite ? `Убрать из любимых: «${title}»` : `В любимые: «${title}»`);
 
   const editBtn = document.createElement('button');
   editBtn.type = 'button';
@@ -183,7 +244,7 @@ function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, 
   removeBtn.textContent = '×';
   removeBtn.setAttribute('aria-label', `Удалить «${title}»`);
 
-  actions.append(editBtn, removeBtn);
+  actions.append(favBtn, editBtn, removeBtn);
   article.append(actions);
 
   const coverEl = document.createElement('div');
@@ -237,9 +298,10 @@ function createCardElement({ title, caption, cover, coverUrl = '', tags = [] }, 
   return article;
 }
 
-// Перерисовывает полку целиком карточками выбранной коллекции в выбранном порядке
-function renderShelf(shelf, cards, sortMode, collection) {
-  const elements = sortedEntries(cards, sortMode, collection).map(({ card, index }) => createCardElement(card, index));
+// Перерисовывает полку целиком карточками выбранной вкладки в выбранном порядке
+function renderShelf(shelf, cards, sortMode, collection, favorites) {
+  const elements = sortedEntries(cards, sortMode, collection, favorites)
+    .map(({ card, index }) => createCardElement(card, index, favorites.includes(card.title)));
   shelf.replaceChildren(...elements);
 }
 
@@ -252,7 +314,7 @@ function pluralize(count, one, few, many) {
   return many;
 }
 
-// Обновляет счётчик в шапке: считает карточки обеих коллекций
+// Обновляет счётчик в шапке: считает все карточки, независимо от вкладки
 function updateCounter(cards) {
   const count = cards.length;
   const counter = document.getElementById('card-count');
@@ -285,11 +347,11 @@ function filterCards(shelf, query, activeTag) {
   }
 }
 
-// Собирает все уникальные теги выбранной коллекции по алфавиту
-function collectTags(cards, collection) {
+// Собирает все уникальные теги карточек выбранной вкладки по алфавиту
+function collectTags(cards, collection, favorites) {
   const all = new Set();
   for (const card of cards) {
-    if (card.collection !== collection) continue;
+    if (!inCollection(card, collection, favorites)) continue;
     for (const tag of card.tags || []) all.add(tag);
   }
   return [...all].sort((a, b) => a.localeCompare(b, 'ru'));
@@ -319,7 +381,6 @@ function readForm(form) {
     cover: String(data.get('cover') || '').trim() || DEFAULT_COVER,
     coverUrl: String(data.get('coverUrl') || '').trim(),
     tags: parseTags(data.get('tags')),
-    collection: COLLECTIONS.includes(data.get('collection')) ? data.get('collection') : 'favorite',
   };
 }
 
@@ -331,7 +392,6 @@ function fillForm(form, card, index) {
   form.elements.cover.value = card.cover || '';
   form.elements.coverUrl.value = card.coverUrl || '';
   form.elements.tags.value = (card.tags || []).join(', ');
-  form.elements.collection.value = card.collection || 'favorite';
   form.classList.add('is-editing');
   document.getElementById('form-title').textContent = 'Редактировать игру';
   document.getElementById('submit-btn').textContent = 'Сохранить';
@@ -340,11 +400,10 @@ function fillForm(form, card, index) {
   form.elements.title.focus();
 }
 
-// Возвращает форму в режим добавления; коллекция по умолчанию — открытая вкладка
-function resetForm(form, collection = 'favorite') {
+// Возвращает форму в режим добавления
+function resetForm(form) {
   form.reset();
   form.elements.index.value = '';
-  form.elements.collection.value = collection;
   form.classList.remove('is-editing');
   document.getElementById('form-title').textContent = 'Добавить игру';
   document.getElementById('submit-btn').textContent = 'Добавить';
@@ -371,6 +430,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Ждём стартовые карточки из файла, поэтому обработчик асинхронный
   const cards = await initCards();
 
+  // Названия любимых игр; читаем после initCards, чтобы миграция уже прошла
+  let favorites = loadFavorites();
+
   // Выбранный тег фильтра; пустая строка — фильтр не выбран
   let activeTag = '';
 
@@ -381,17 +443,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Активная вкладка и коллекция, которую показывает полка. На вкладке
   // «Тирлист» полка скрыта, но коллекция остаётся последней открытой
   let activeTab = loadTab();
-  let collection = COLLECTIONS.includes(activeTab) ? activeTab : 'favorite';
+  let collection = COLLECTIONS.includes(activeTab) ? activeTab : 'played';
 
   // Сообщает другим скриптам (tierlist.js), что карточки изменились
   function notifyCardsChanged() {
     document.dispatchEvent(new CustomEvent('shelf:cards-changed'));
   }
 
+  // Ставит или снимает признак «любимая» по названию и сохраняет список.
+  // Пример: setFavorite('Kenshi', true) → в shelf-favorites появляется "Kenshi"
+  function setFavorite(title, favorite) {
+    favorites = favorites.filter((item) => item !== title);
+    if (favorite) {
+      favorites.push(title);
+    }
+    saveFavorites(favorites);
+  }
+
   // Переключает вкладку: подсвечивает кнопку, показывает полку или тирлист,
   // запоминает выбор и сообщает о нём другим скриптам
   function switchTab(tab) {
-    activeTab = TABS.includes(tab) ? tab : 'favorite';
+    activeTab = TABS.includes(tab) ? tab : 'played';
     saveTab(activeTab);
     for (const button of tabs.querySelectorAll('[data-tab]')) {
       button.setAttribute('aria-selected', String(button.dataset.tab === activeTab));
@@ -404,7 +476,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       collection = activeTab;
       searchInput.value = '';
       activeTag = '';
-      resetForm(form, collection);
+      resetForm(form);
       rerender();
     }
     document.dispatchEvent(new CustomEvent('shelf:tab', { detail: { tab: activeTab } }));
@@ -427,7 +499,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Перерисовывает чипы по актуальному набору тегов. Если выбранный тег
   // исчез из коллекции (карточку удалили или отредактировали), фильтр сбрасывается
   function refreshTagFilter() {
-    const tags = collectTags(cards, collection);
+    const tags = collectTags(cards, collection, favorites);
     if (activeTag && !tags.includes(activeTag)) {
       activeTag = '';
     }
@@ -436,13 +508,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Полная перерисовка: полка в выбранном порядке, счётчик, чипы и фильтр
   function rerender() {
-    renderShelf(shelf, cards, sortMode, collection);
+    renderShelf(shelf, cards, sortMode, collection, favorites);
     updateCounter(cards);
     refreshTagFilter();
     applyFilter();
   }
 
-  resetForm(form, collection);
+  resetForm(form);
   rerender();
   switchTab(activeTab);
   // Тирлист мог отрисоваться до того, как хранилище заполнилось стартовыми карточками
@@ -487,7 +559,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     searchInput.focus();
   });
 
-  // Кнопки на карточке: «✎» открывает правку, «×» удаляет.
+  // Кнопки на карточке: «♡» переключает любимую, «✎» открывает правку, «×» удаляет.
   // Индекс берём из data-index, а не из положения на полке: полка может быть отсортирована
   shelf.addEventListener('click', (event) => {
     // Клик по чипу тега на карточке включает фильтр по этому тегу
@@ -497,33 +569,46 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const button = event.target.closest('.game-edit, .game-remove');
+    const button = event.target.closest('.game-fav, .game-edit, .game-remove');
     if (!button) {
       return;
     }
     const card = button.closest('.game-card');
     const index = Number(card.dataset.index);
 
+    if (button.classList.contains('game-fav')) {
+      // На вкладке «Любимые» карточка после снятия сердечка исчезнет при перерисовке
+      const title = cards[index].title;
+      setFavorite(title, !favorites.includes(title));
+      rerender();
+      notifyCardsChanged();
+      return;
+    }
+
     if (button.classList.contains('game-edit')) {
       fillForm(form, cards[index], index);
       return;
     }
 
-    cards.splice(index, 1);
+    const [removed] = cards.splice(index, 1);
     saveCards(cards);
+    // Удалённую игру убираем и из любимых, если другой карточки с таким названием нет
+    if (!cards.some((item) => item.title === removed.title)) {
+      setFavorite(removed.title, false);
+    }
     // После удаления индексы сдвигаются, поэтому незавершённую правку сбрасываем
     if (editingIndex(form) !== -1) {
-      resetForm(form, collection);
+      resetForm(form);
     }
     rerender();
     notifyCardsChanged();
   });
 
   // Отмена правки кнопкой или клавишей Escape
-  cancelBtn.addEventListener('click', () => resetForm(form, collection));
+  cancelBtn.addEventListener('click', () => resetForm(form));
   form.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && editingIndex(form) !== -1) {
-      resetForm(form, collection);
+      resetForm(form);
     }
   });
 
@@ -542,22 +627,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     const index = editingIndex(form);
     if (index !== -1) {
+      // При переименовании признак «любимая» переносится на новое название
+      const oldTitle = cards[index].title;
       cards[index] = card;
+      if (oldTitle !== card.title && favorites.includes(oldTitle)) {
+        setFavorite(oldTitle, false);
+        setFavorite(card.title, true);
+      }
     } else {
+      // Новая игра всегда попадает в «Играл»; с открытой вкладки «Любимые» — ещё и в любимые
       cards.push(card);
+      if (collection === 'favorite') {
+        setFavorite(card.title, true);
+      }
     }
 
-    // Перерисовываем полку целиком, чтобы карточка сразу встала на место по сортировке.
-    // Если карточку отправили в другую коллекцию, переходим на её вкладку
+    // Перерисовываем полку целиком, чтобы карточка сразу встала на место по сортировке
     saveCards(cards);
-    if (card.collection !== collection) {
-      switchTab(card.collection);
-    } else {
-      rerender();
-    }
+    rerender();
     notifyCardsChanged();
 
-    resetForm(form, collection);
+    resetForm(form);
     form.elements.title.focus();
   });
 });

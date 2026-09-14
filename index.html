@@ -13,11 +13,11 @@
   </header>
 
   <main>
-    <!-- Вкладки: две коллекции карточек и тирлист. Активная вкладка хранится
-         в localStorage под ключом shelf-tab, переключение — в app.js -->
+    <!-- Вкладки: «Играл» со всеми играми, «Любимые» (отмеченные сердечком) и тирлист.
+         Активная вкладка хранится в localStorage под ключом shelf-tab, переключение — в app.js -->
     <nav class="tabs" id="tabs" role="tablist" aria-label="Разделы">
-      <button type="button" role="tab" data-tab="favorite" aria-selected="true">Любимые</button>
-      <button type="button" role="tab" data-tab="played" aria-selected="false">Играл</button>
+      <button type="button" role="tab" data-tab="favorite" aria-selected="false">Любимые</button>
+      <button type="button" role="tab" data-tab="played" aria-selected="true">Играл</button>
       <button type="button" role="tab" data-tab="tierlist" aria-selected="false">Тирлист</button>
     </nav>
 
@@ -34,11 +34,6 @@
       <input name="cover" type="text" maxlength="8" placeholder="🎮" aria-label="Обложка-эмодзи">
       <input name="coverUrl" type="url" maxlength="2000" placeholder="Ссылка на обложку (необязательно)" aria-label="Ссылка на обложку">
       <input name="tags" type="text" maxlength="120" placeholder="Теги через запятую" aria-label="Теги">
-      <!-- Коллекция карточки; по умолчанию подставляется активная вкладка -->
-      <select name="collection" aria-label="Коллекция">
-        <option value="favorite">Любимые</option>
-        <option value="played">Играл</option>
-      </select>
       <button type="submit" id="submit-btn">Добавить</button>
       <button type="button" id="cancel-edit" hidden>Отмена</button>
     </form>
